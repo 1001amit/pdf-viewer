@@ -10,6 +10,9 @@ const fullscreenBtn = document.getElementById('fullscreen');
 const downloadBtn = document.getElementById('download');
 const searchInput = document.getElementById('search-input');
 const searchBtn = document.getElementById('search-btn');
+const nightModeBtn = document.getElementById('night-mode');
+const bookmarkBtn = document.getElementById('bookmark-page');
+const bookmarksContainer = document.getElementById('bookmarks');
 const thumbnailsContainer = document.getElementById('thumbnails');
 
 let pdfDoc = null;
@@ -17,10 +20,11 @@ let pageNum = 1;
 let pageIsRendering = false;
 let pageNumPending = null;
 let zoomScale = 1.5;
+let pdfFile = null;
+let bookmarks = [];
 
 const canvas = document.createElement('canvas');
 const ctx = canvas.getContext('2d');
-let pdfFile = null;
 
 const renderPage = num => {
     pageIsRendering = true;
@@ -99,9 +103,11 @@ const zoomOut = () => {
 const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
         document.documentElement.requestFullscreen();
+        document.body.classList.add('fullscreen-mode');
     } else {
         if (document.exitFullscreen) {
             document.exitFullscreen();
+            document.body.classList.remove('fullscreen-mode');
         }
     }
 };
@@ -181,6 +187,31 @@ const searchInPDF = (query) => {
     });
 };
 
+const toggleNightMode = () => {
+    document.body.classList.toggle('night-mode');
+};
+
+const addBookmark = () => {
+    if (!bookmarks.includes(pageNum)) {
+        bookmarks.push(pageNum);
+        renderBookmarks();
+    }
+};
+
+const renderBookmarks = () => {
+    bookmarksContainer.innerHTML = '';
+    bookmarks.forEach(page => {
+        const bookmark = document.createElement('div');
+        bookmark.classList.add('bookmark');
+        bookmark.textContent = `Page ${page}`;
+        bookmark.addEventListener('click', () => {
+            pageNum = page;
+            queueRenderPage(page);
+        });
+        bookmarksContainer.appendChild(bookmark);
+    });
+};
+
 fileInput.addEventListener('change', e => {
     const file = e.target.files[0];
     pdfFile = file;
@@ -219,4 +250,5 @@ searchBtn.addEventListener('click', () => {
         alert('Please enter a search term.');
     }
 });
-
+nightModeBtn.addEventListener('click', toggleNightMode);
+bookmarkBtn.addEventListener('click', addBookmark);
