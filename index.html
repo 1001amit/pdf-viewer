@@ -12,6 +12,7 @@
         <h1 class="my-4">PDF Viewer</h1>
         <input type="file" id="file-input" class="form-control mb-3" accept="application/pdf">
         <div id="pdf-render"></div>
+        <div id="metadata" class="mt-3"></div>
         <div class="mt-3">
             <button id="prev-page" class="btn btn-primary">Previous Page</button>
             <button id="next-page" class="btn btn-primary">Next Page</button>
@@ -23,6 +24,11 @@
             <button id="fullscreen" class="btn btn-secondary">Fullscreen</button>
             <button id="download" class="btn btn-secondary">Download PDF</button>
             <button id="night-mode" class="btn btn-secondary">Night Mode</button>
+            <button id="rotate-page" class="btn btn-secondary">Rotate Page</button>
+        </div>
+        <div class="mt-3">
+            <input type="number" id="page-jump-input" class="form-control" placeholder="Jump to page" min="1">
+            <button id="page-jump-btn" class="btn btn-secondary mt-2">Go</button>
         </div>
         <div class="mt-3">
             <input type="text" id="search-input" class="form-control" placeholder="Search text in PDF">

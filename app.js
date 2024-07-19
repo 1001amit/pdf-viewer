@@ -14,6 +14,10 @@ const nightModeBtn = document.getElementById('night-mode');
 const bookmarkBtn = document.getElementById('bookmark-page');
 const bookmarksContainer = document.getElementById('bookmarks');
 const thumbnailsContainer = document.getElementById('thumbnails');
+const pageJumpInput = document.getElementById('page-jump-input');
+const pageJumpBtn = document.getElementById('page-jump-btn');
+const rotatePageBtn = document.getElementById('rotate-page');
+const metadataContainer = document.getElementById('metadata');
 
 let pdfDoc = null;
 let pageNum = 1;
@@ -22,6 +26,7 @@ let pageNumPending = null;
 let zoomScale = 1.5;
 let pdfFile = null;
 let bookmarks = [];
+let currentRotation = 0;
 
 const canvas = document.createElement('canvas');
 const ctx = canvas.getContext('2d');
@@ -30,7 +35,7 @@ const renderPage = num => {
     pageIsRendering = true;
 
     pdfDoc.getPage(num).then(page => {
-        const viewport = page.getViewport({ scale: zoomScale });
+        const viewport = page.getViewport({ scale: zoomScale, rotation: currentRotation });
         canvas.height = viewport.height;
         canvas.width = viewport.width;
 
@@ -153,26 +158,21 @@ const generateThumbnails = () => {
 };
 
 const downloadPDF = () => {
-    if (pdfFile) {
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(pdfFile);
-        link.download = 'downloaded.pdf';
-        link.click();
-    } else {
-        alert('Please upload a PDF file first.');
-    }
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(pdfFile);
+    link.download = 'downloaded.pdf';
+    link.click();
 };
 
-const searchInPDF = (query) => {
+const searchInPDF = query => {
     pdfDoc.getPage(pageNum).then(page => {
         page.getTextContent().then(textContent => {
-            const textItems = textContent.items;
             const regex = new RegExp(query, 'gi');
             let text = '';
 
-            for (const item of textItems) {
+            textContent.items.forEach(item => {
                 text += item.str + ' ';
-            }
+            });
 
             if (regex.test(text)) {
                 alert(`Found "${query}" on page ${pageNum}`);
@@ -212,6 +212,33 @@ const renderBookmarks = () => {
     });
 };
 
+const jumpToPage = () => {
+    const pageNumber = parseInt(pageJumpInput.value);
+    if (pageNumber && pageNumber > 0 && pageNumber <= pdfDoc.numPages) {
+        pageNum = pageNumber;
+        queueRenderPage(pageNumber);
+    } else {
+        alert('Invalid page number');
+    }
+};
+
+const rotatePage = () => {
+    currentRotation = (currentRotation + 90) % 360;
+    renderPage(pageNum);
+};
+
+const displayMetadata = metadata => {
+    metadataContainer.innerHTML = `
+        <h5>PDF Metadata</h5>
+        <p><strong>Title:</strong> ${metadata.info.Title || 'N/A'}</p>
+        <p><strong>Author:</strong> ${metadata.info.Author || 'N/A'}</p>
+        <p><strong>Subject:</strong> ${metadata.info.Subject || 'N/A'}</p>
+        <p><strong>Keywords:</strong> ${metadata.info.Keywords || 'N/A'}</p>
+        <p><strong>Creation Date:</strong> ${metadata.info.CreationDate || 'N/A'}</p>
+        <p><strong>Modification Date:</strong> ${metadata.info.ModDate || 'N/A'}</p>
+    `;
+};
+
 fileInput.addEventListener('change', e => {
     const file = e.target.files[0];
     pdfFile = file;
@@ -229,6 +256,11 @@ fileInput.addEventListener('change', e => {
             pageCountElem.textContent = pdfDoc.numPages;
             renderPage(pageNum);
             generateThumbnails();
+            pdfDoc.getMetadata().then(metadata => {
+                displayMetadata(metadata);
+            }).catch(err => {
+                console.error('Metadata error:', err);
+            });
         }).catch(err => {
             console.error('PDF load error:', err);
             alert('Error loading PDF. Please try another file.');
@@ -252,3 +284,5 @@ searchBtn.addEventListener('click', () => {
 });
 nightModeBtn.addEventListener('click', toggleNightMode);
 bookmarkBtn.addEventListener('click', addBookmark);
+pageJumpBtn.addEventListener('click', jumpToPage);
+rotatePageBtn.addEventListener('click', rotatePage);
