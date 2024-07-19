@@ -7,16 +7,20 @@ const pageCountElem = document.getElementById('page-count');
 const zoomInBtn = document.getElementById('zoom-in');
 const zoomOutBtn = document.getElementById('zoom-out');
 const fullscreenBtn = document.getElementById('fullscreen');
+const downloadBtn = document.getElementById('download');
+const searchInput = document.getElementById('search-input');
+const searchBtn = document.getElementById('search-btn');
 const thumbnailsContainer = document.getElementById('thumbnails');
 
 let pdfDoc = null;
 let pageNum = 1;
 let pageIsRendering = false;
 let pageNumPending = null;
-let zoomScale = 1.5; // Initial zoom scale
+let zoomScale = 1.5;
 
 const canvas = document.createElement('canvas');
 const ctx = canvas.getContext('2d');
+let pdfFile = null;
 
 const renderPage = num => {
     pageIsRendering = true;
@@ -142,8 +146,44 @@ const generateThumbnails = () => {
     }
 };
 
+const downloadPDF = () => {
+    if (pdfFile) {
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(pdfFile);
+        link.download = 'downloaded.pdf';
+        link.click();
+    } else {
+        alert('Please upload a PDF file first.');
+    }
+};
+
+const searchInPDF = (query) => {
+    pdfDoc.getPage(pageNum).then(page => {
+        page.getTextContent().then(textContent => {
+            const textItems = textContent.items;
+            const regex = new RegExp(query, 'gi');
+            let text = '';
+
+            for (const item of textItems) {
+                text += item.str + ' ';
+            }
+
+            if (regex.test(text)) {
+                alert(`Found "${query}" on page ${pageNum}`);
+            } else {
+                alert(`"${query}" not found on page ${pageNum}`);
+            }
+        }).catch(err => {
+            console.error('Text content error:', err);
+        });
+    }).catch(err => {
+        console.error('Get page error:', err);
+    });
+};
+
 fileInput.addEventListener('change', e => {
     const file = e.target.files[0];
+    pdfFile = file;
     if (file.type !== 'application/pdf') {
         alert('Please upload a PDF file.');
         return;
@@ -170,4 +210,13 @@ nextPageBtn.addEventListener('click', showNextPage);
 zoomInBtn.addEventListener('click', zoomIn);
 zoomOutBtn.addEventListener('click', zoomOut);
 fullscreenBtn.addEventListener('click', toggleFullscreen);
+downloadBtn.addEventListener('click', downloadPDF);
+searchBtn.addEventListener('click', () => {
+    const query = searchInput.value.trim();
+    if (query) {
+        searchInPDF(query);
+    } else {
+        alert('Please enter a search term.');
+    }
+});
 
