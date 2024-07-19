@@ -18,10 +18,8 @@ const pageJumpInput = document.getElementById('page-jump-input');
 const pageJumpBtn = document.getElementById('page-jump-btn');
 const rotatePageBtn = document.getElementById('rotate-page');
 const metadataContainer = document.getElementById('metadata');
-const customizeInterfaceBtn = document.getElementById('customize-interface');
 const buttonColorInput = document.getElementById('button-color');
 const themeSelect = document.getElementById('theme-select');
-const saveCustomizationsBtn = document.getElementById('save-customizations');
 
 let pdfDoc = null;
 let pageNum = 1;
@@ -299,15 +297,4 @@ nightModeBtn.addEventListener('click', toggleNightMode);
 bookmarkBtn.addEventListener('click', addBookmark);
 pageJumpBtn.addEventListener('click', jumpToPage);
 rotatePageBtn.addEventListener('click', rotatePage);
-customizeInterfaceBtn.addEventListener('click', () => {
-    $('#customizeModal').modal('show');
-});
-saveCustomizationsBtn.addEventListener('click', () => {
-    const buttonColor = buttonColorInput.value;
-    const theme = themeSelect.value;
 
-    document.documentElement.style.setProperty('--button-color', buttonColor);
-    document.body.className = theme;
-
-    $('#customizeModal').modal('hide');
-});
