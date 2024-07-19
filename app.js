@@ -18,6 +18,10 @@ const pageJumpInput = document.getElementById('page-jump-input');
 const pageJumpBtn = document.getElementById('page-jump-btn');
 const rotatePageBtn = document.getElementById('rotate-page');
 const metadataContainer = document.getElementById('metadata');
+const customizeInterfaceBtn = document.getElementById('customize-interface');
+const buttonColorInput = document.getElementById('button-color');
+const themeSelect = document.getElementById('theme-select');
+const saveCustomizationsBtn = document.getElementById('save-customizations');
 
 let pdfDoc = null;
 let pageNum = 1;
@@ -117,74 +121,15 @@ const toggleFullscreen = () => {
     }
 };
 
-const createThumbnail = (page, num) => {
-    const thumbnail = document.createElement('div');
-    thumbnail.classList.add('thumbnail');
-    const thumbnailCanvas = document.createElement('canvas');
-    const thumbnailCtx = thumbnailCanvas.getContext('2d');
-
-    const viewport = page.getViewport({ scale: 0.2 });
-    thumbnailCanvas.height = viewport.height;
-    thumbnailCanvas.width = viewport.width;
-
-    page.render({
-        canvasContext: thumbnailCtx,
-        viewport
-    }).promise.then(() => {
-        const img = document.createElement('img');
-        img.src = thumbnailCanvas.toDataURL();
-        thumbnail.appendChild(img);
-    }).catch(err => {
-        console.error('Thumbnail render error:', err);
-    });
-
-    thumbnail.addEventListener('click', () => {
-        pageNum = num;
-        queueRenderPage(num);
-    });
-
-    thumbnailsContainer.appendChild(thumbnail);
-};
-
-const generateThumbnails = () => {
-    thumbnailsContainer.innerHTML = '';
-    for (let i = 1; i <= pdfDoc.numPages; i++) {
-        pdfDoc.getPage(i).then(page => {
-            createThumbnail(page, i);
-        }).catch(err => {
-            console.error('Get thumbnail page error:', err);
-        });
-    }
-};
-
 const downloadPDF = () => {
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(pdfFile);
-    link.download = 'downloaded.pdf';
-    link.click();
-};
+    if (!pdfFile) return;
 
-const searchInPDF = query => {
-    pdfDoc.getPage(pageNum).then(page => {
-        page.getTextContent().then(textContent => {
-            const regex = new RegExp(query, 'gi');
-            let text = '';
-
-            textContent.items.forEach(item => {
-                text += item.str + ' ';
-            });
-
-            if (regex.test(text)) {
-                alert(`Found "${query}" on page ${pageNum}`);
-            } else {
-                alert(`"${query}" not found on page ${pageNum}`);
-            }
-        }).catch(err => {
-            console.error('Text content error:', err);
-        });
-    }).catch(err => {
-        console.error('Get page error:', err);
-    });
+    const url = URL.createObjectURL(pdfFile);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = pdfFile.name;
+    a.click();
+    URL.revokeObjectURL(url);
 };
 
 const toggleNightMode = () => {
@@ -192,23 +137,37 @@ const toggleNightMode = () => {
 };
 
 const addBookmark = () => {
-    if (!bookmarks.includes(pageNum)) {
-        bookmarks.push(pageNum);
-        renderBookmarks();
-    }
+    bookmarks.push(pageNum);
+    renderBookmarks();
 };
 
 const renderBookmarks = () => {
     bookmarksContainer.innerHTML = '';
     bookmarks.forEach(page => {
         const bookmark = document.createElement('div');
-        bookmark.classList.add('bookmark');
         bookmark.textContent = `Page ${page}`;
+        bookmark.classList.add('bookmark');
         bookmark.addEventListener('click', () => {
             pageNum = page;
-            queueRenderPage(page);
+            renderPage(pageNum);
         });
         bookmarksContainer.appendChild(bookmark);
+    });
+};
+
+const searchInPDF = query => {
+    pdfDoc.getPage(pageNum).then(page => {
+        return page.getTextContent();
+    }).then(textContent => {
+        const text = textContent.items.map(item => item.str).join(' ');
+        const index = text.toLowerCase().indexOf(query.toLowerCase());
+        if (index !== -1) {
+            alert(`Found "${query}" on page ${pageNum}`);
+        } else {
+            alert(`"${query}" not found on page ${pageNum}`);
+        }
+    }).catch(err => {
+        console.error('Search error:', err);
     });
 };
 
@@ -239,6 +198,73 @@ const displayMetadata = metadata => {
     `;
 };
 
+const loadPDF = (typedArray, password = null) => {
+    const loadingTask = pdfjsLib.getDocument({ data: typedArray, password });
+    loadingTask.promise.then(pdfDoc_ => {
+        pdfDoc = pdfDoc_;
+        pageCountElem.textContent = pdfDoc.numPages;
+        renderPage(pageNum);
+        generateThumbnails();
+        pdfDoc.getMetadata().then(metadata => {
+            displayMetadata(metadata);
+        }).catch(err => {
+            console.error('Metadata error:', err);
+        });
+    }).catch(err => {
+        if (err.name === 'PasswordException') {
+            const userPassword = prompt('This PDF is password protected. Please enter the password:');
+            if (userPassword) {
+                loadPDF(typedArray, userPassword);
+            }
+        } else {
+            console.error('PDF load error:', err);
+            alert('Error loading PDF. Please try another file.');
+        }
+    });
+};
+
+const generateThumbnails = () => {
+    pdfDoc.getPage(1).then(page => {
+        for (let i = 1; i <= pdfDoc.numPages; i++) {
+            pdfDoc.getPage(i).then(page => {
+                createThumbnail(page, i);
+            }).catch(err => {
+                console.error('Generate thumbnails error:', err);
+            });
+        }
+    }).catch(err => {
+        console.error('Get page error:', err);
+    });
+};
+
+const createThumbnail = (page, num) => {
+    const thumbnail = document.createElement('div');
+    thumbnail.classList.add('thumbnail');
+
+    const thumbnailCanvas = document.createElement('canvas');
+    const thumbnailCtx = thumbnailCanvas.getContext('2d');
+    const viewport = page.getViewport({ scale: 0.2 });
+    thumbnailCanvas.height = viewport.height;
+    thumbnailCanvas.width = viewport.width;
+
+    const renderCtx = {
+        canvasContext: thumbnailCtx,
+        viewport
+    };
+
+    page.render(renderCtx).promise.then(() => {
+        thumbnail.appendChild(thumbnailCanvas);
+        thumbnailsContainer.appendChild(thumbnail);
+
+        thumbnail.addEventListener('click', () => {
+            pageNum = num;
+            renderPage(pageNum);
+        });
+    }).catch(err => {
+        console.error('Thumbnail render error:', err);
+    });
+};
+
 fileInput.addEventListener('change', e => {
     const file = e.target.files[0];
     pdfFile = file;
@@ -251,20 +277,7 @@ fileInput.addEventListener('change', e => {
     reader.readAsArrayBuffer(file);
     reader.onload = function () {
         const typedArray = new Uint8Array(this.result);
-        pdfjsLib.getDocument(typedArray).promise.then(pdfDoc_ => {
-            pdfDoc = pdfDoc_;
-            pageCountElem.textContent = pdfDoc.numPages;
-            renderPage(pageNum);
-            generateThumbnails();
-            pdfDoc.getMetadata().then(metadata => {
-                displayMetadata(metadata);
-            }).catch(err => {
-                console.error('Metadata error:', err);
-            });
-        }).catch(err => {
-            console.error('PDF load error:', err);
-            alert('Error loading PDF. Please try another file.');
-        });
+        loadPDF(typedArray);
     };
 });
 
@@ -286,3 +299,15 @@ nightModeBtn.addEventListener('click', toggleNightMode);
 bookmarkBtn.addEventListener('click', addBookmark);
 pageJumpBtn.addEventListener('click', jumpToPage);
 rotatePageBtn.addEventListener('click', rotatePage);
+customizeInterfaceBtn.addEventListener('click', () => {
+    $('#customizeModal').modal('show');
+});
+saveCustomizationsBtn.addEventListener('click', () => {
+    const buttonColor = buttonColorInput.value;
+    const theme = themeSelect.value;
+
+    document.documentElement.style.setProperty('--button-color', buttonColor);
+    document.body.className = theme;
+
+    $('#customizeModal').modal('hide');
+});
